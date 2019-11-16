@@ -35,7 +35,27 @@ def cross_entropy_loss_naive(W, X, y, reg):
     # the regularization!                                                      #
     ############################################################################
 
-    pass
+    scores = X.dot(W)
+    num_train = X.shape[0]
+    num_classes = W.shape[1]
+
+    # Softmax Loss
+    for i in range(num_train):
+        f = scores[i] - np.max(scores[i]) # avoid numerical instability
+        softmax = np.exp(f)/np.sum(np.exp(f))
+        loss += -np.log(softmax[y[i]])
+        # Weight Gradients
+        for j in range(num_classes):
+            dW[:,j] += X[i] * softmax[j]
+        dW[:,y[i]] -= X[i]
+
+    # Average
+    loss /= num_train
+    dW /= num_train
+
+    # Regularization
+    loss += reg * np.sum(W * W)
+    dW += reg * 2 * W 
 
     ############################################################################
     #                          END OF YOUR CODE                                #
@@ -61,7 +81,26 @@ def cross_entropy_loss_vectorized(W, X, y, reg):
     # the regularization!                                                      #
     ############################################################################
 
-    pass
+    num_train = X.shape[0]
+    scores = X.dot(W)
+    scores = scores - np.max(scores, axis=1, keepdims=True)
+
+    # Softmax Loss
+    sum_exp_scores = np.exp(scores).sum(axis=1, keepdims=True)
+    softmax_matrix = np.exp(scores)/sum_exp_scores
+    loss = np.sum(-np.log(softmax_matrix[np.arange(num_train), y]) )
+
+    # Weight Gradient
+    softmax_matrix[np.arange(num_train),y] -= 1
+    dW = X.T.dot(softmax_matrix)
+
+    # Average
+    loss /= num_train
+    dW /= num_train
+
+    # Regularization
+    loss += reg * np.sum(W * W)
+    dW += reg * 2 * W 
 
     ############################################################################
     #                          END OF YOUR CODE                                #
@@ -104,7 +143,50 @@ def softmax_hyperparameter_tuning(X_train, y_train, X_val, y_val):
     # the validation code with a larger value for num_iters.                   #
     ############################################################################
 
-    pass
+    num_lr = 20
+    learning_rate_nums = np.random.choice(
+        np.linspace(start=learning_rates[0], stop=learning_rates[1], num=50),
+        num_lr
+    )
+
+    num_reg = 20
+    regularization_strength_nums = np.random.choice(
+        np.linspace(start=regularization_strengths[0], stop=regularization_strengths[1], num=100),
+        num_reg
+    )
+
+    import itertools
+
+    subset_indices = np.random.choice(range(num_reg*num_lr), 30, replace=True)
+
+    parameters = list(itertools.product(learning_rate_nums, regularization_strength_nums))
+
+    for i, parameter_index in enumerate(subset_indices):
+        print(f"Trying {i+1}/{len(subset_indices)} subset...")
+        (learning_rate, reg) = parameters[parameter_index]
+        softmax = SoftmaxClassifier()
+        loss_hist = softmax.train(
+            X_train, 
+            y_train, 
+            learning_rate=learning_rate, 
+            reg=reg,
+            num_iters=3000, 
+            verbose=False
+        )
+
+        y_train_pred = softmax.predict(X_train)
+        train_acc = np.mean(y_train == y_train_pred)
+
+        y_val_pred = softmax.predict(X_val)
+        val_acc = np.mean(y_val == y_val_pred)
+
+        results[(learning_rate, reg)] = (train_acc, val_acc)
+        
+        if val_acc > best_val:
+            best_val = val_acc
+            best_softmax = softmax
+        
+        all_classifiers.append((softmax, val_acc))
 
     ############################################################################
     #                              END OF YOUR CODE                            #
