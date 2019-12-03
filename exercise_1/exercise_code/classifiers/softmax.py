@@ -143,18 +143,18 @@ def softmax_hyperparameter_tuning(X_train, y_train, X_val, y_val):
     # once you are confident that your validation code works, you should rerun #
     # the validation code with a larger value for num_iters.                   #
     ############################################################################
-    learning_rates = [-7, -6]
-    regularization_strengths = [3, 5]
+    learning_rates = [3e-7, 3e-6]
+    regularization_strengths = [1e3, 2e5]
     
-    def generate_random_hyperparams(lr_stats, reg_stats):
-        lr = 10**np.random.uniform(lr_stats[0], lr_stats[1])
-        reg = 10**np.random.uniform(reg_stats[0], reg_stats[1])
+    def get_random_params(lr_stats, reg_stats):
+        lr = np.random.uniform(lr_stats[0], lr_stats[1])
+        reg = np.random.uniform(reg_stats[0], reg_stats[1])
         return lr, reg
     
-    num_experiment = 32
+    num_experiment = 20
     for i in range(num_experiment):
         print(f"Trying {i+1:02d}/{num_experiment} subset...", end=" ")
-        lr, rg = generate_random_hyperparams(learning_rates, regularization_strengths)
+        lr, rg = get_random_params(learning_rates, regularization_strengths)
         softmax = SoftmaxClassifier()
         softmax.train(X_train, y_train, learning_rate=lr, reg=rg, num_iters=1500)
 

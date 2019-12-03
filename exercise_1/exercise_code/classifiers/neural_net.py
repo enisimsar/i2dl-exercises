@@ -285,23 +285,23 @@ def neuralnetwork_hyperparameter_tuning(X_train, y_train, X_val, y_val):
     input_size = X_train.shape[1]
     num_classes = 10
 
-    learning_rates = [-4, -3]
+    learning_rates = [1e-4, 4e-3]
     learning_decays = [0.87, 0.92]
-    regularization_strengths = [-4, -1]
+    regularization_strengths = [1e-4, 4e-1]
     hidden_sizes = [150, 500]
 
-    def generate_random_hyperparams(lr_stats, reg_stats, h_stats, lr_decay_stat):
-        lr = 10**np.random.uniform(lr_stats[0], lr_stats[1])
-        reg = 10**np.random.uniform(reg_stats[0], reg_stats[1])
+    def get_random_params(lr_stats, reg_stats, h_stats, lr_decay_stat):
+        lr = np.random.uniform(lr_stats[0], lr_stats[1])
+        reg = np.random.uniform(reg_stats[0], reg_stats[1])
         hidden = np.random.randint(h_stats[0], h_stats[1])
         lr_decay = np.random.uniform(lr_decay_stat[0], lr_decay_stat[1])
         return lr, reg, hidden, lr_decay
 
     # Use of random search for hyperparameter search
-    num_experiment = 10
+    num_experiment = 15
     for i in range(num_experiment):
         print(f"Trying {i+1:02d}/{num_experiment} subset...", end=" ")
-        lr, reg, hidden_dim, lr_decay = generate_random_hyperparams(learning_rates, regularization_strengths, hidden_sizes, learning_decays)
+        lr, reg, hidden_dim, lr_decay = get_random_params(learning_rates, regularization_strengths, hidden_sizes, learning_decays)
         # Create a two-layer network
         net = TwoLayerNet(input_size, hidden_dim, num_classes)
         
