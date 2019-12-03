@@ -46,7 +46,8 @@ def cross_entropy_loss_naive(W, X, y, reg):
         loss += -np.log(softmax[y[i]])
         # Weight Gradients
         for j in range(num_classes):
-            dW[:,j] += X[i] * softmax[j]
+            if j != y[i]:
+                dW[:,j] += X[i] * softmax[j]
         dW[:,y[i]] -= X[i]
 
     # Average
@@ -54,9 +55,8 @@ def cross_entropy_loss_naive(W, X, y, reg):
     dW /= num_train
 
     # Regularization
-    loss += reg * np.sum(W * W)
-    dW += reg * 2 * W 
-
+    loss += 0.5 * reg * np.sum(W * W)
+    dW += reg * W 
     ############################################################################
     #                          END OF YOUR CODE                                #
     ############################################################################
@@ -80,27 +80,28 @@ def cross_entropy_loss_vectorized(W, X, y, reg):
     # careful here, it is easy to run into numeric instability. Don't forget   #
     # the regularization!                                                      #
     ############################################################################
-
     num_train = X.shape[0]
     scores = X.dot(W)
-    scores = scores - np.max(scores, axis=1, keepdims=True)
 
-    # Softmax Loss
-    sum_exp_scores = np.exp(scores).sum(axis=1, keepdims=True)
-    softmax_matrix = np.exp(scores)/sum_exp_scores
-    loss = np.sum(-np.log(softmax_matrix[np.arange(num_train), y]) )
+    # Normalize the scores to avoid computational problems with the exponential
+    # Normalize with max as zero
+    scores = scores - np.max(scores, axis = 1).reshape(-1,1)
+    exp_scores = np.exp(scores - np.max(scores, axis=1, keepdims=True))
+    probs = exp_scores/np.sum(exp_scores,axis=1,keepdims=True)
+    loss = -np.sum(np.log(probs[np.arange(num_train),y]))
 
-    # Weight Gradient
-    softmax_matrix[np.arange(num_train),y] -= 1
-    dW = X.T.dot(softmax_matrix)
-
-    # Average
+    # Divide the loss by the number of trainig examples
     loss /= num_train
+    # Add regularization
+    loss += 0.5 * reg * np.sum(W * W)
+
+    dprobs = probs
+    dprobs[np.arange(num_train),y] -= 1
+    dW = X.T.dot(dprobs)
     dW /= num_train
 
-    # Regularization
-    loss += reg * np.sum(W * W)
-    dW += reg * 2 * W 
+    # Gradient regularization
+    dW += reg*W
 
     ############################################################################
     #                          END OF YOUR CODE                                #
@@ -142,51 +143,34 @@ def softmax_hyperparameter_tuning(X_train, y_train, X_val, y_val):
     # once you are confident that your validation code works, you should rerun #
     # the validation code with a larger value for num_iters.                   #
     ############################################################################
-
-    num_lr = 20
-    learning_rate_nums = np.random.choice(
-        np.linspace(start=learning_rates[0], stop=learning_rates[1], num=50),
-        num_lr
-    )
-
-    num_reg = 20
-    regularization_strength_nums = np.random.choice(
-        np.linspace(start=regularization_strengths[0], stop=regularization_strengths[1], num=100),
-        num_reg
-    )
-
-    import itertools
-
-    subset_indices = np.random.choice(range(num_reg*num_lr), 30, replace=True)
-
-    parameters = list(itertools.product(learning_rate_nums, regularization_strength_nums))
-
-    for i, parameter_index in enumerate(subset_indices):
-        print(f"Trying {i+1}/{len(subset_indices)} subset...")
-        (learning_rate, reg) = parameters[parameter_index]
+    learning_rates = [-7, -6]
+    regularization_strengths = [3, 5]
+    
+    def generate_random_hyperparams(lr_stats, reg_stats):
+        lr = 10**np.random.uniform(lr_stats[0], lr_stats[1])
+        reg = 10**np.random.uniform(reg_stats[0], reg_stats[1])
+        return lr, reg
+    
+    num_experiment = 32
+    for i in range(num_experiment):
+        print(f"Trying {i+1:02d}/{num_experiment} subset...", end=" ")
+        lr, rg = generate_random_hyperparams(learning_rates, regularization_strengths)
         softmax = SoftmaxClassifier()
-        loss_hist = softmax.train(
-            X_train, 
-            y_train, 
-            learning_rate=learning_rate, 
-            reg=reg,
-            num_iters=3000, 
-            verbose=False
-        )
+        softmax.train(X_train, y_train, learning_rate=lr, reg=rg, num_iters=1500)
 
         y_train_pred = softmax.predict(X_train)
-        train_acc = np.mean(y_train == y_train_pred)
+        train_accuracy = np.mean(y_train_pred == y_train)
 
         y_val_pred = softmax.predict(X_val)
-        val_acc = np.mean(y_val == y_val_pred)
+        val_accuracy = np.mean(y_val_pred == y_val)
 
-        results[(learning_rate, reg)] = (train_acc, val_acc)
-        
-        if val_acc > best_val:
-            best_val = val_acc
+        results[(lr,rg)] = (train_accuracy, val_accuracy)
+        if best_val < val_accuracy:
+            best_val = val_accuracy
             best_softmax = softmax
-        
-        all_classifiers.append((softmax, val_acc))
+    
+        all_classifiers.append((softmax, val_accuracy))
+        print("Val Accuracy:", val_accuracy)
 
     ############################################################################
     #                              END OF YOUR CODE                            #

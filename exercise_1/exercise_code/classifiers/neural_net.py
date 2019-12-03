@@ -79,7 +79,9 @@ class TwoLayerNet(object):
         # array of shape (N, C).                                               #         
         ########################################################################
 
-        pass
+        first_layer = X.dot(W1) + b1
+        h_output = np.maximum(0, first_layer) # ReLU
+        scores = h_output.dot(W2) + b2
 
         ########################################################################
         #                              END OF YOUR CODE                        #
@@ -99,7 +101,11 @@ class TwoLayerNet(object):
         # the regularization loss by 0.5                                       #
         ########################################################################
 
-        pass
+        scores = scores - np.max(scores, axis = 1).reshape(-1,1)
+        softmax = np.exp(scores)/np.sum(np.exp(scores), axis = 1).reshape(-1,1)
+        loss = -np.sum(np.log(softmax[range(N), list(y)]))
+        loss /= N
+        loss +=  0.5 * reg * (np.sum(W1 * W1) + np.sum(W2 * W2))
 
         ########################################################################
         #                              END OF YOUR CODE                        #
@@ -114,7 +120,20 @@ class TwoLayerNet(object):
         # of same size                                                         #
         ########################################################################
 
-        pass
+        dscores = softmax.copy()
+        dscores[range(N), list(y)] -= 1
+        dscores /= N
+        grads['W2'] = h_output.T.dot(dscores)
+        grads['b2'] = np.sum(dscores, axis = 0)
+        
+        dh = dscores.dot(W2.T)
+        dh_ReLu = (h_output > 0) * dh
+        grads['W1'] = X.T.dot(dh_ReLu)
+        grads['b1'] = np.sum(dh_ReLu, axis = 0)
+
+        # add reg term
+        grads['W2'] += reg * W2
+        grads['W1'] += reg * W1
 
         ########################################################################
         #                              END OF YOUR CODE                        #
@@ -161,7 +180,9 @@ class TwoLayerNet(object):
             # storing hem in X_batch and y_batch respectively.                 #
             ####################################################################
 
-            pass
+            batch_indices = np.random.choice(num_train, batch_size, replace=num_train<batch_size)
+            X_batch = X[batch_indices]
+            y_batch = y[batch_indices]
 
             ####################################################################
             #                             END OF YOUR CODE                     #
@@ -178,7 +199,11 @@ class TwoLayerNet(object):
             # gradients stored in the grads dictionary defined above.          #
             ####################################################################
 
-            pass
+            self.params['W1'] -= learning_rate * grads['W1']
+            self.params['b1'] -= learning_rate * grads['b1']
+
+            self.params['W2'] -= learning_rate * grads['W2']
+            self.params['b2'] -= learning_rate * grads['b2']
 
             ####################################################################
             #                             END OF YOUR CODE                     #
@@ -225,7 +250,11 @@ class TwoLayerNet(object):
         # TODO: Implement this function; it should be VERY simple!             #
         ########################################################################
 
-        pass
+        fc_1 = X.dot(self.params['W1']) + self.params['b1']
+        o1 = np.maximum(0, fc_1) 
+
+        scores = o1.dot(self.params['W2']) + self.params['b2']
+        y_pred = np.argmax(scores, axis=1)
 
         ########################################################################
         #                              END OF YOUR CODE                        #
@@ -251,7 +280,53 @@ def neuralnetwork_hyperparameter_tuning(X_train, y_train, X_val, y_val):
     # automatically like we did on the previous exercises.                     #
     ############################################################################
 
-    pass
+    best_val = -1
+
+    input_size = X_train.shape[1]
+    num_classes = 10
+
+    learning_rates = [-4, -3]
+    learning_decays = [0.87, 0.92]
+    regularization_strengths = [-4, -1]
+    hidden_sizes = [150, 500]
+
+    def generate_random_hyperparams(lr_stats, reg_stats, h_stats, lr_decay_stat):
+        lr = 10**np.random.uniform(lr_stats[0], lr_stats[1])
+        reg = 10**np.random.uniform(reg_stats[0], reg_stats[1])
+        hidden = np.random.randint(h_stats[0], h_stats[1])
+        lr_decay = np.random.uniform(lr_decay_stat[0], lr_decay_stat[1])
+        return lr, reg, hidden, lr_decay
+
+    # Use of random search for hyperparameter search
+    num_experiment = 10
+    for i in range(num_experiment):
+        print(f"Trying {i+1:02d}/{num_experiment} subset...", end=" ")
+        lr, reg, hidden_dim, lr_decay = generate_random_hyperparams(learning_rates, regularization_strengths, hidden_sizes, learning_decays)
+        # Create a two-layer network
+        net = TwoLayerNet(input_size, hidden_dim, num_classes)
+        
+        # Train the network
+        stats = net.train(X_train, y_train, X_val, y_val,
+                    num_iters=3000, batch_size=200,
+                    learning_rate=lr, learning_rate_decay=lr_decay,
+                    reg=reg, verbose=False)
+
+        # Predict on the training set
+        train_accuracy = (net.predict(X_train) == y_train).mean()
+        
+        # Predict on the validation set
+        val_accuracy = (net.predict(X_val) == y_val).mean()
+        
+        # Save best values
+        if val_accuracy > best_val:
+            best_val = val_accuracy
+            best_net = net
+        
+        # Print results
+        print('lr %e reg %e hid %d lr_decay %e train accuracy: %f val accuracy: %f' % (
+                    lr, reg, hidden_dim, lr_decay, train_accuracy, val_accuracy))
+        
+    print('best validation accuracy achieved during validation: %f' % best_val)
 
     ############################################################################
     #                               END OF YOUR CODE                           #
