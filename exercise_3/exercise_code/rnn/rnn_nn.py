@@ -17,6 +17,14 @@ class RNN(nn.Module):
         # nn.Linear() function as your linear layers.                         #
         # Initialse h as 0 if these values are not given.                     #
         #######################################################################
+        
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.activation = activation
+
+        self.linear_x = nn.Linear(self.input_size, self.hidden_size)
+        self.linear_h = nn.Linear(self.hidden_size, self.hidden_size)
+        self.activation = nn.ReLU() if activation == 'relu' else nn.Tanh()
 
         #######################################################################
         #                           END OF YOUR CODE                          #
@@ -38,6 +46,15 @@ class RNN(nn.Module):
         #                                YOUR CODE                            #
         #######################################################################
 
+        (seq_len, batch_size, _) = x.shape
+        if h is None:
+            h = torch.zeros((1, batch_size, self.hidden_size))
+        h_seq = torch.zeros((seq_len, batch_size, self.hidden_size))
+
+        for i in range(seq_len):
+            h = self.activation(self.linear_h(h) + self.linear_x(x[i]))
+            h_seq[i] = h
+
         #######################################################################
         #                           END OF YOUR CODE                          #
         #######################################################################
@@ -53,6 +70,27 @@ class LSTM(nn.Module):
         # nn.Linear() function as your linear layers.                         #
         # Initialse h and c as 0 if these values are not given.               #
         #######################################################################
+
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+
+        self.input_gate_fc1 = nn.Linear(self.input_size, self.hidden_size)
+        self.input_gate_fc2 = nn.Linear(self.hidden_size, self.hidden_size)
+        self.input_gate_act = nn.Sigmoid()
+
+        self.forgot_gate_fc1 = nn.Linear(self.input_size, self.hidden_size)
+        self.forgot_gate_fc2 = nn.Linear(self.hidden_size, self.hidden_size)
+        self.forgot_gate_act = nn.Sigmoid()
+
+        self.output_gate_fc1 = nn.Linear(self.input_size, self.hidden_size)
+        self.output_gate_fc2 = nn.Linear(self.hidden_size, self.hidden_size)
+        self.output_gate_act = nn.Sigmoid()
+
+        self.memory_cell_fc1 = nn.Linear(self.input_size, self.hidden_size)
+        self.memory_cell_fc2 = nn.Linear(self.hidden_size, self.hidden_size)
+        self.memory_cell_act = nn.Tanh()
+
+        self.c_act = nn.Tanh()
 
         #######################################################################
         #                           END OF YOUR CODE                          #
@@ -76,6 +114,31 @@ class LSTM(nn.Module):
         #                                YOUR CODE                            #
         #######################################################################
 
+        (seq_len, batch_size, _) = x.shape
+
+        if h is None:
+            h = torch.zeros((1, batch_size, self.hidden_size))
+        
+        if c is None:
+            c = torch.zeros((1, batch_size, self.hidden_size))
+
+        h_seq = torch.zeros((seq_len, batch_size, self.hidden_size))
+        c_seq = torch.zeros((seq_len, batch_size, self.hidden_size))
+
+        for i in range(seq_len):
+            f_t = self.forgot_gate_act(self.forgot_gate_fc1(x[i]) + self.forgot_gate_fc2(h))
+            i_t = self.input_gate_act(self.input_gate_fc1(x[i]) + self.input_gate_fc2(h))
+            c_tilda_t = self.memory_cell_act(self.memory_cell_fc1(x[i]) + self.memory_cell_fc2(h))
+
+            c = c * f_t + i_t * c_tilda_t
+            c_seq[i] = c
+
+            o_t = self.output_gate_act(self.output_gate_fc1(x[i]) + self.output_gate_fc2(h))
+
+            h = o_t * self.c_act(c)
+            h_seq[i] = h
+
+
         #######################################################################
         #                           END OF YOUR CODE                          #
         #######################################################################
@@ -89,6 +152,16 @@ class RNN_Classifier(torch.nn.Module):
         #######################################################################
         #  TODO: Build a RNN classifier                                       #
         #######################################################################
+
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.rnn = nn.RNN(input_size,hidden_size)
+        self.fc = nn.Linear(hidden_size, classes)
+    
+    def forward(self, x):
+        out, _ = self.rnn(x)
+        out = self.fc(out[-1])
+        return out
 
         #######################################################################
         #                           END OF YOUR CODE                          #
@@ -112,6 +185,15 @@ class LSTM_Classifier(torch.nn.Module):
         #######################################################################
         #  TODO: Build a LSTM classifier                                      #
         #######################################################################
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.lstm = nn.LSTM(input_size,hidden_size)
+        self.fc = nn.Linear(hidden_size, classes)
+        
+    def forward(self, x):
+        out, _ = self.lstm(x)
+        out = self.fc(out[-1])
+        return out
 
         #######################################################################
         #                          END OF YOUR CODE                           #
