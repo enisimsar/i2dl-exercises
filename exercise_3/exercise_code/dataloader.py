@@ -26,7 +26,7 @@ class FacialKeypointsDataset(Dataset):
         # Return the length of the dataset                                    #
         #######################################################################
 
-        pass
+        return len(self.key_pts_frame)
 
         #######################################################################
         #                             END OF YOUR CODE                        #
@@ -42,7 +42,12 @@ class FacialKeypointsDataset(Dataset):
         #         'keypoints': keypoints of shape [num_keypoints, 2]}         #
         #######################################################################
 
-
+        sample['image'] = np.array(
+            [int(item) for item in self.key_pts_frame.loc[idx]['Image'].split()]
+        ).reshape((1, 96, 96))
+        sample['keypoints'] = self.key_pts_frame.iloc[idx][
+            list(self.key_pts_frame.columns)[:-1]
+        ].values.reshape((15, 2)).astype(np.float32)
 
         #######################################################################
         #                           END OF YOUR CODE                          #

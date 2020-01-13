@@ -22,6 +22,43 @@ class KeypointModel(nn.Module):
         # overfitting.                                                        #
         #######################################################################
 
+        layers = []
+        conv2d = nn.Conv2d(1, 16, kernel_size=4)
+        layers += [
+            conv2d, 
+            nn.BatchNorm2d(16), 
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=3)
+        ]
+
+        conv2d = nn.Conv2d(16, 32, kernel_size=3)
+        layers += [
+            conv2d, 
+            nn.BatchNorm2d(32), 
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=3)
+        ]
+
+        conv2d = nn.Conv2d(32, 64, kernel_size=3)
+        layers += [
+            conv2d, 
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=3)
+        ]
+
+        self.features = nn.Sequential(*layers)
+
+        self.classifier = nn.Sequential(
+            nn.Linear(64 * 2 * 2, 128),
+            nn.ReLU(True),
+            nn.Dropout(),
+            nn.Linear(128, 64),
+            nn.ReLU(True),
+            nn.Dropout(),
+            nn.Linear(64, 30),
+        )
+
         #######################################################################
         #                             END OF YOUR CODE                        #
         #######################################################################
@@ -35,6 +72,10 @@ class KeypointModel(nn.Module):
         # a modified x, having gone through all the layers of your model,     #
         # should be returned                                                  #
         #######################################################################
+
+        x = self.features(x)
+        x = x.view(x.size(0), -1)
+        x = self.classifier(x)
 
         #######################################################################
         #                           END OF YOUR CODE                          #
